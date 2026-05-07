@@ -6,11 +6,12 @@ An autonomous AI agent that searches the web for the latest AI news, summarizes 
 
 Every day, the agent:
 
-1. Searches the web for the most recent AI news using Tavily
-2. Checks Pinecone to make sure each story hasn't already been sent
-3. Writes a clean HTML summary of the top stories
-4. Emails the digest to you via Gmail
-5. Saves the stories to Pinecone so they aren't repeated tomorrow
+1. Searches the web for the most recent AI news using Tavily, with a randomized search angle (research breakthroughs, OpenAI / Anthropic / DeepMind news, etc.) so each run finds different stories
+2. Pulls 8 candidate stories and checks Pinecone for duplicates against previous digests
+3. Picks the first 5 non-duplicate stories
+4. Writes a clean HTML summary of each
+5. Emails the digest to you via Gmail (with a footer note if fewer than 5 unique stories survived deduplication)
+6. Saves the chosen stories to Pinecone so they aren't repeated tomorrow
 
 ## Tech stack
 
@@ -90,12 +91,12 @@ Built to run cheaply on free tiers and a small Anthropic API budget.
 
 | Service | Usage per run | Cost |
 |---------|---------------|------|
-| Claude (Haiku 4.5) | ~11k input + ~2.3k output tokens | ~$0.022 |
+| Claude (Haiku 4.5) | ~15k input + ~3k output tokens | ~$0.030 |
 | Tavily | 1 search | Free tier (1,000/mo) |
-| Pinecone | ~6 small embed/query/upsert calls | Free tier (2GB) |
+| Pinecone | ~16 small embed/query/upsert calls | Free tier (2GB) |
 | Gmail SMTP | 1 email | Free |
 | GitHub Actions | ~1 minute | Free tier (2,000 min/mo) |
 
-**Total: ~$0.022 per run, ~$0.66 per month** running daily.
+**Total: ~$0.03 per run, ~$0.90 per month** running daily.
 
-The agent is tuned for low token usage: it does one broad search per run, caps Tavily summaries at 300 characters, and limits results to 3 stories per query.
+The agent is tuned for low token usage: it does one broad search per run, caps Tavily summaries at 300 characters, and surfaces 8 candidate stories so it can pick 5 unique ones after deduplication.
