@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import anthropic
 from tavily import TavilyClient
+from pinecone import Pinecone, ServerlessSpec
 import os
 from datetime import date
 import smtplib
@@ -11,6 +12,17 @@ load_dotenv()
 
 client = anthropic.Anthropic()
 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+INDEX_NAME = "ai-digest"
+if INDEX_NAME not in [i.name for i in pc.list_indexes()]:
+    pc.create_index(
+        name=INDEX_NAME,
+        dimension=1024,
+        metric="cosine",
+        spec=ServerlessSpec(cloud="aws", region="us-east-1")
+    )
+index = pc.Index(INDEX_NAME)
 
 today = date.today().strftime("%B %d, %Y")
 
@@ -27,6 +39,38 @@ tools = [
                 }
             },
             "required": ["query"]
+        }
+    },
+    {
+        "name": "check_duplicate",
+        "description": "Check if a news story has already been sent before using semantic similarity. Call this before sending any story.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "The headline or title of the news story"
+                }
+            },
+            "required": ["title"]
+        }
+    },
+    {
+        "name": "save_story",
+        "description": "Save a news story to memory after sending it so it won't be sent again.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "The headline or title of the news story"
+                },
+                "url": {
+                    "type": "string",
+                    "description": "The URL of the news story"
+                }
+            },
+            "required": ["title", "url"]
         }
     },
     {
@@ -50,11 +94,36 @@ tools = [
 ]
 
 def search_web(query):
-    results = tavily.search(query=query, max_results=5, days=3)
+    dated_query = f"{query} {today}"
+    results = tavily.search(query=dated_query, max_results=5, days=1)
     formatted = []
     for r in results["results"]:
         formatted.append(f"Title: {r['title']}\nURL: {r['url']}\nSummary: {r['content']}\n")
     return "\n---\n".join(formatted)
+
+def check_duplicate(title):
+    embedding = pc.inference.embed(
+        model="multilingual-e5-large",
+        inputs=[title],
+        parameters={"input_type": "query"}
+    )
+    results = index.query(vector=embedding[0].values, top_k=1, include_metadata=True)
+    if results.matches and results.matches[0].score > 0.92:
+        return f"Duplicate: already sent '{results.matches[0].metadata['title']}'"
+    return "Not a duplicate, safe to send"
+
+def save_story(title, url):
+    embedding = pc.inference.embed(
+        model="multilingual-e5-large",
+        inputs=[title],
+        parameters={"input_type": "passage"}
+    )
+    index.upsert(vectors=[{
+        "id": url,
+        "values": embedding[0].values,
+        "metadata": {"title": title, "url": url}
+    }])
+    return "Story saved to memory"
 
 def send_email(subject, body):
     sender = os.getenv("GMAIL_ADDRESS")
@@ -108,6 +177,10 @@ while True:
 
             if tool_block.name == "search_web":
                 result = search_web(tool_block.input["query"])
+            elif tool_block.name == "check_duplicate":
+                result = check_duplicate(tool_block.input["title"])
+            elif tool_block.name == "save_story":
+                result = save_story(tool_block.input["title"], tool_block.input["url"])
             elif tool_block.name == "send_email":
                 result = send_email(tool_block.input["subject"], tool_block.input["body"])
             else:
