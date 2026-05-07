@@ -83,3 +83,19 @@ The repo includes a workflow at `.github/workflows/daily-digest.yml` that runs d
 │   └── daily-digest.yml        # scheduled GitHub Action
 └── README.md
 ```
+
+## Cost
+
+Built to run cheaply on free tiers and a small Anthropic API budget.
+
+| Service | Usage per run | Cost |
+|---------|---------------|------|
+| Claude (Haiku 4.5) | ~11k input + ~2.3k output tokens | ~$0.022 |
+| Tavily | 1 search | Free tier (1,000/mo) |
+| Pinecone | ~6 small embed/query/upsert calls | Free tier (2GB) |
+| Gmail SMTP | 1 email | Free |
+| GitHub Actions | ~1 minute | Free tier (2,000 min/mo) |
+
+**Total: ~$0.022 per run, ~$0.66 per month** running daily.
+
+The agent is tuned for low token usage: it does one broad search per run, caps Tavily summaries at 300 characters, and limits results to 3 stories per query.
