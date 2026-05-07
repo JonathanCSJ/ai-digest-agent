@@ -119,7 +119,7 @@ ANGLES = [
 def search_web(query):
     angle = random.choice(ANGLES)
     dated_query = f"{query} {angle} {today}"
-    results = tavily.search(query=dated_query, max_results=8, days=1)
+    results = tavily.search(query=dated_query, max_results=5, days=1)
     formatted = []
     for r in results["results"]:
         snippet = r["content"][:300]
@@ -169,7 +169,7 @@ def send_email(subject, body):
     return "Email sent successfully"
 
 messages = [
-    {"role": "user", "content": "Search the web for the top AI news stories from this week. Pick 5 non-duplicate stories. Write a clear summary of each and make sure to add link to the article, then send it as an email with the subject 'Your Daily AI Digest'."}
+    {"role": "user", "content": "Search the web for the top AI news stories from this week. Pick 3 non-duplicate stories. Write a clear summary of each and make sure to add link to the article, then send it as an email with the subject 'Your Daily AI Digest'."}
 ]
 
 print("Agent is thinking...\n")
@@ -178,7 +178,7 @@ while True:
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
-        system=f"Today's date is {today}. Do ONE broad web search to find the top AI news stories — do not run multiple searches. The search returns up to 8 candidate stories. Call check_duplicate on each candidate and pick the first 5 non-duplicate stories to include in the email. Save each chosen story with save_story before sending. When sending emails, format the body as clean HTML. Use a white background, readable fonts, and structure each story with an <h2> headline, a short <p> summary, and an <a href> link to the article. Wrap everything in a <div> with max-width 600px and padding. If fewer than 5 unique stories were available because the rest were duplicates of stories already sent, add a short italic note at the bottom of the email explaining how many were skipped (e.g. '<p><em>Note: 2 stories were skipped because they were already included in a previous digest.</em></p>').",
+        system=f"Today's date is {today}. Do ONE broad web search to find the top AI news stories — do not run multiple searches. The search returns up to 5 candidate stories. Call check_duplicate on each candidate and pick the first 3 non-duplicate stories to include in the email. Save each chosen story with save_story before sending. When sending emails, format the body as clean HTML. Use a white background, readable fonts, and structure each story with an <h2> headline, a short <p> summary, and an <a href> link to the article. Wrap everything in a <div> with max-width 600px and padding. If fewer than 3 unique stories were available because the rest were duplicates of stories already sent, add a short italic note at the bottom of the email explaining how many were skipped (e.g. '<p><em>Note: 2 stories were skipped because they were already included in a previous digest.</em></p>').",
         tools=tools,
         messages=messages
     )
