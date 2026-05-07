@@ -66,8 +66,7 @@ def send_email(subject, body):
     msg["From"] = sender
     msg["To"] = recipient
 
-    # Plain text version
-    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(body, "html"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(sender, password)
@@ -85,7 +84,7 @@ while True:
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
-        system=f"Today's date is {today}. Always search for the most recent news.",
+        system=f"Today's date is {today}. Always search for the most recent news. When sending emails, format the body as clean HTML. Use a white background, readable fonts, and structure each story with an <h2> headline, a short <p> summary, and an <a href> link to the article. Wrap everything in a <div> with max-width 600px and padding.",
         tools=tools,
         messages=messages
     )
