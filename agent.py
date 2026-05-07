@@ -3,10 +3,13 @@ import anthropic
 from tavily import TavilyClient
 from pinecone import Pinecone, ServerlessSpec
 import os
+import sys
 from datetime import date
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+sys.stdout.reconfigure(encoding="utf-8")
 
 load_dotenv()
 
@@ -95,10 +98,11 @@ tools = [
 
 def search_web(query):
     dated_query = f"{query} {today}"
-    results = tavily.search(query=dated_query, max_results=5, days=1)
+    results = tavily.search(query=dated_query, max_results=3, days=1)
     formatted = []
     for r in results["results"]:
-        formatted.append(f"Title: {r['title']}\nURL: {r['url']}\nSummary: {r['content']}\n")
+        snippet = r["content"][:300]
+        formatted.append(f"Title: {r['title']}\nURL: {r['url']}\nSummary: {snippet}\n")
     return "\n---\n".join(formatted)
 
 def check_duplicate(title):
@@ -153,7 +157,7 @@ while True:
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
-        system=f"Today's date is {today}. Always search for the most recent news. When sending emails, format the body as clean HTML. Use a white background, readable fonts, and structure each story with an <h2> headline, a short <p> summary, and an <a href> link to the article. Wrap everything in a <div> with max-width 600px and padding.",
+        system=f"Today's date is {today}. Do ONE broad web search to find the top AI news stories — do not run multiple searches. Pick the 3 most important stories from that single search. Before sending the email, check each story for duplicates and save it. When sending emails, format the body as clean HTML. Use a white background, readable fonts, and structure each story with an <h2> headline, a short <p> summary, and an <a href> link to the article. Wrap everything in a <div> with max-width 600px and padding.",
         tools=tools,
         messages=messages
     )
